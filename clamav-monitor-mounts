@@ -1,0 +1,22 @@
+#! /usr/bin/python3 -u
+from subprocess import Popen
+from gi.repository import UDisks, GLib
+
+def child_exit_cb (pid, status, path):
+    print (f'Monitor for {path} exited with status {status}')
+
+def properties_changed_cb (manager, obj, intf, properties, invalidated):
+    try:
+        path = properties.lookup_value ("MountPoints").get_bytestring_array()[0]
+    except (KeyError, IndexError, AttributeError):
+        return
+    if path.startswith ('/media/'):
+        print (f"{path} mounted, spawning clamav-mountpoint…")
+        child = Popen (['/usr/local/sbin/clamav-mountpoint', path], env={'PYTHONUNBUFFERED': "true"})
+        GLib.child_watch_add (child.pid, child_exit_cb, path)
+
+client = UDisks.Client.new_sync()
+manager = client.get_object_manager()
+manager.connect ("interface-proxy-properties-changed", properties_changed_cb)
+mainloop = GLib.MainLoop()
+mainloop.run()

@@ -1,0 +1,21 @@
+#! /usr/bin/python3
+
+import os, pwd, sys
+from subprocess import run, Popen, PIPE
+
+for user in os.listdir('/home'):
+  if user in ('quarantine', 'lost+found'):
+    continue
+  try:
+    uid=pwd.getpwnam(user).pw_uid
+  except KeyError:
+    continue
+  print (f'Scanning /home/{user}…')
+  clamdscan = Popen (('clamdscan', '--no-summary', '--fdpass', '--stdout', '-m', '--move=/home/quarantine', f'/home/{user}'), 
+                     stdout=PIPE, user=uid, text=True)
+  for line in clamdscan.stdout:
+    sys.stdout.write (line)
+    if line.strip().endswith('FOUND'):
+      # This will error if the user is not logged on. Ignore.
+      run (('notify-send', '-u', 'critical', 'Malware found and removed', line.strip()),
+           user=uid, capture_output=True, env={'DBUS_SESSION_BUS_ADDRESS': f'unix:path=/run/user/{uid}/bus'})

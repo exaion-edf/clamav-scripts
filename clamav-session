@@ -1,0 +1,27 @@
+#! /usr/bin/python3
+
+import os, sys
+from subprocess import run
+from gi.repository import GLib
+import notify2, pyinotify
+
+dl_dir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD)
+notify2.init('ClamAV scanner')
+
+class EventHandler(pyinotify.ProcessEvent):
+    def process_IN_CLOSE_WRITE(self, event):
+        global init
+        clamdscan = run (('clamdscan', '--no-summary', '--fdpass', '--stdout', '-m',
+                          '--move=/home/quarantine', event.pathname),
+                         capture_output=True, text=True)
+        for line in clamdscan.stdout.splitlines():
+            print(line)
+            if line.strip().endswith ('FOUND'):
+                n = notify2.Notification ('Malware found and removed', line.strip())
+                n.set_urgency (notify2.URGENCY_CRITICAL)
+                n.show ()
+
+wm = pyinotify.WatchManager()
+wm.add_watch(dl_dir, pyinotify.IN_CLOSE_WRITE, rec=True)
+print (f'Listening events in {dl_dir}…')
+pyinotify.Notifier (wm, EventHandler ()).loop()

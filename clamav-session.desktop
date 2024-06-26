@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Monitor download directory with clamav
+Exec=/usr/local/bin/clamav-session
+NoDisplay=true

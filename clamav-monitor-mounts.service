@@ -1,0 +1,20 @@
+[Unit]
+Description=Monitor removable media and use clamonacc on them
+Requires=clamav-daemon.socket
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/clamav-monitor-mounts
+Restart=always
+ProtectSystem=strict
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictRealtime=true
+
+[Install]
+WantedBy=multi-user.target

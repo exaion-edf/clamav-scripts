@@ -1,0 +1,58 @@
+#! /usr/bin/python3
+
+import os, pwd, sys
+from subprocess import run, Popen, PIPE, STDOUT
+
+def error (msg):
+    print (msg)
+    sys.exit (1)
+
+if len(sys.argv) != 2:
+    error (f'Usage: {sys.argv[0]} mountpoint')
+
+mountpoint = sys.argv[1]
+components = mountpoint.split ('/')
+if len(components) != 4 or components[0] or components[1] != 'media':
+    error (f"Don’t know what to do with mountpoint {mountpoint}")
+
+user = components[2]
+try:
+    uid = pwd.getpwnam (user).pw_uid
+except KeyError:
+    error (f"Can't find user {user}")
+
+if not os.path.isdir (mountpoint):
+    error (f"{mountpoint} doesn't look like a mountpoint")
+
+print (f'Monitoring {mountpoint}…')
+clamonacc = Popen (('/usr/sbin/clamonacc', '-F', '--fdpass', '-c', '/dev/stdin'), 
+                     stdin=PIPE, stdout=PIPE, stderr=STDOUT, text=True)
+                     
+clamonacc.stdin.write (f'''
+LocalSocket /var/run/clamav/clamd.ctl
+OnAccessExcludeUname clamav
+OnAccessExtraScanning true
+OnAccessIncludePath {mountpoint}
+OnAccessMaxFileSize 50M
+OnAccessPrevention true
+''')
+clamonacc.stdin.close()
+
+error = False
+for line in clamonacc.stdout:
+    sys.stdout.write (line)
+    line = line.strip()
+    if line.endswith('FOUND'):
+        # This will error if the user is not logged on. Ignore.
+        run (('notify-send', '-u', 'critical', 'Malware found on media', line.strip()),
+             user=uid, capture_output=True, env={'DBUS_SESSION_BUS_ADDRESS': f'unix:path=/run/user/{uid}/bus'})
+    elif line.startswith('ERROR'):
+        if 'UNMOUNT' in line:
+            print ("Filesystem unmounted, exiting…")
+        else:
+            print ("Unknown error, exiting…")
+            error = True
+        clamonacc.terminate ()
+
+if error:
+    sys.exit (1)

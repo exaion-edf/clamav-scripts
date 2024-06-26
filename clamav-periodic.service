@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic ClamAV run
+Requires=clamav-daemon.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/clamav-periodic-scan
+ProtectHostname=true
+ProtectClock=true
+LockPersonality=true
+RestrictRealtime=true
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle

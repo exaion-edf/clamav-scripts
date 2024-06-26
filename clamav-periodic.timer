@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer for periodic ClamAV run
+
+[Timer]
+OnCalendar=wed 12:00
+Persistent=true
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target
